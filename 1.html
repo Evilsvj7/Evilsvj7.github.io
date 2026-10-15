@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BINAC</title>
+<style>
+  *{box-sizing:border-box}
+  body{font:16px/1.7 system-ui,-apple-system,Segoe UI,sans-serif;max-width:640px;
+       margin:0 auto;padding:14px 14px 24px;background:#fff;color:#1f2328}
+  h1{margin:0 0 4px;font-size:20px}
+  .note{background:#fff8c5;border:1px solid #d4a72c;border-radius:7px;
+        padding:10px 12px;font-size:12.5px;line-height:1.55;color:#4a3c00;
+        margin:0 0 14px}
+  input{width:100%;padding:12px;font-size:16px;border:1px solid #d0d7de;
+        border-radius:8px}
+  input:focus{outline:none;border-color:#0969da}
+  button{margin-top:10px;padding:12px 28px;font-size:16px;background:#238636;
+         color:#fff;border:0;border-radius:8px;cursor:pointer;font-weight:600;
+         width:100%}
+  button:active{background:#1a6b28}
+  #log{margin-top:16px;min-height:40px}
+  .msg{margin-bottom:14px}
+  .q{color:#0969da;font-weight:600}
+  .a{margin-top:2px}
+  .err{color:#cf222e}
+  .ok{color:#1a7f37;font-size:13px;margin-bottom:10px}
+  #stat{position:fixed;right:10px;bottom:8px;font-size:11px;color:#8c959f;
+        background:#fff;padding:2px 7px;border-radius:5px;border:1px solid #eaeef2}
+</style>
+</head>
+<body>
+
+<h1>BINAC</h1>
+
+<div class="note">
+  <strong>Notice:</strong> The AI currently lacks stability and is still in the
+  testing stage. Its performance may not be reliable at this time. We are still
+  in the initial development phase. Please feel free to use our service without
+  worrying about any leakage of your chat messages or private information.
+</div>
+
+<input id="q" placeholder="Ask me something in English" autocomplete="off">
+<button onclick="ask()">Send</button>
+<div id="log"></div>
+<div id="stat">tokens 0</div>
+
+<script src="binac_v9.6_memory.js"></script>
+<script src="binac_v96.js"></script>
+
+<script>
+var logEl = document.getElementById('log');
+var statEl = document.getElementById('stat');
+var ready = false;
+var totIn = 0, totOut = 0;
+
+function esc(s){
+  return (s||'').replace(/[&<>]/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];
+  });
+}
+function say(html){ logEl.insertAdjacentHTML('beforeend', html); }
+
+function updStat(){
+  statEl.textContent = 'tokens ' + (totIn + totOut) +
+                       '  (in ' + totIn + ' / out ' + totOut + ')';
+}
+
+try {
+  if (typeof BINAC_BRAIN === 'undefined') {
+    say('<div class="err">&#10007; Memory file not loaded: binac_v9.6_memory.js ' +
+        'is missing. Make sure it sits in the same folder as this page.</div>');
+  } else if (typeof BINAC === 'undefined') {
+    say('<div class="err">&#10007; Engine not loaded: binac_v96.js is missing. ' +
+        'Make sure it sits in the same folder as this page.</div>');
+  } else {
+    BINAC.load(BINAC_BRAIN);
+    ready = true;
+    say('<div class="ok">&#10003; Ready</div>');
+  }
+} catch (e) {
+  say('<div class="err">&#10007; Startup failed: ' + e.message + '</div>');
+}
+
+document.getElementById('q').addEventListener('keydown', function(e){
+  if (e.key === 'Enter') { e.preventDefault(); ask(); }
+});
+
+function ask() {
+  if (!ready) { say('<div class="err">Not ready yet</div>'); return; }
+  var q = document.getElementById('q').value.trim();
+  if (!q) return;
+
+  var r = BINAC.ask(q);
+  document.getElementById('q').value = '';
+
+  var tin = BINAC.tok(q).length;
+  var tout = (r.ids && r.ids.length) ? r.ids.length
+                                     : (r.text ? r.text.split(/\s+/).length : 0);
+  totIn += tin; totOut += tout;
+  updStat();
+
+  say('<div class="msg">' +
+      '<div class="q">You &gt; ' + esc(q) + '</div>' +
+      '<div class="a">' + esc(r.text ||
+        '(i am not sure i understand could you ask that another way)') + '</div>' +
+      '</div>');
+  window.scrollTo(0, document.body.scrollHeight);
+}
+</script>
+
+</body>
+</html>
